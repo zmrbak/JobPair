@@ -1,10 +1,10 @@
 #!/bin/bash
 #JSUB -q gpu3
-#JSUB -J jjob1
+#JSUB -J jjob2
 #JSUB -n 1
 #JSUB -m gpu07
 
-# jjob1.txt - 任务执行脚本1，包含死循环
+# jjob2.txt - 任务执行脚本2，包含死循环
 counter=0
 # 使用当前时间作为文件名
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -16,9 +16,9 @@ CHECK_INTERVAL=10   # 检测间隔（秒）
 DEBUG=0             # 调试模式开关：1=启用调试，0=禁用调试
 
 # 定义变量
-THIS_JOB_NAME="jjob1"
-THAT_JOB_NAME="jjob2"
-THAT_JOB_FILE="jjob2.txt"
+THIS_JOB_NAME="monitor"
+THAT_JOB_NAME="master"
+THAT_JOB_FILE="master.job"
 LOG_FILE="${THIS_JOB_NAME}.log"
 
 while true; do
@@ -31,18 +31,18 @@ while true; do
         echo "$counter" > "$DATA_FILE"
     fi
     
-    # 检查jjob2是否运行（初始延迟后，按间隔时间检测）
+    # 检查jjob1是否运行（初始延迟后，按间隔时间检测）
     if [ $counter -gt $INITIAL_DELAY ] && [ $((counter % $CHECK_INTERVAL)) -eq 0 ]; then
-        # 获取jjob2作业ID
-        JOB2_ID=$(jjobs -a 2>&1 | grep -E ".*\s+$THAT_JOB_NAME\s+" | awk '{print $1}' | head -1 2>/dev/null)
+        # 获取jjob1作业ID
+        JOB1_ID=$(jjobs -a 2>&1 | grep -E ".*\s+$THAT_JOB_NAME\s+" | awk '{print $1}' | head -1 2>/dev/null)
         
-        # 检查jjob2作业是否存在（使用jjobs命令）
+        # 检查jjob1作业是否存在（使用jjobs命令）
         # 作业可能不存在或状态为EXIT/FAILED等停止状态
         if ! jjobs -a 2>&1 | grep -q "$THAT_JOB_NAME"; then
             if [ $DEBUG -eq 1 ]; then
                 echo "[$THIS_JOB_NAME] 检测到$THAT_JOB_NAME未运行，立即启动$THAT_JOB_NAME..." >> "$LOG_FILE"
             fi
-            # 启动jjob2（使用jsub命令参考jtest.sh的方式）
+            # 启动jjob1（使用jsub命令参考jtest.sh的方式）
             jsub < "$THAT_JOB_FILE" > /dev/null 2>&1 &
             # 立即检测启动的作业
             sleep 2
@@ -55,15 +55,15 @@ while true; do
                     echo "$(date): [$THIS_JOB_NAME] $THAT_JOB_NAME 已成功启动" >> "$LOG_FILE"
                 fi
             fi
-        elif [ -n "$JOB2_ID" ]; then
+        elif [ -n "$JOB1_ID" ]; then
             # 检查作业是否处于EXIT状态
-            STATUS=$(jjobs -w $JOB2_ID 2>/dev/null | awk 'NR>1 {print $3}' 2>/dev/null)
+            STATUS=$(jjobs -w $JOB1_ID 2>/dev/null | awk 'NR>1 {print $3}' 2>/dev/null)
             if [ "$STATUS" = "EXIT" ]; then
                 if [ $DEBUG -eq 1 ]; then
                     echo "[$THIS_JOB_NAME] 检测到$THAT_JOB_NAME处于EXIT状态，正在清理并重新启动..." >> "$LOG_FILE"
                 fi
                 # 清理作业
-                jctrl clean $JOB2_ID 2>/dev/null
+                jctrl clean $JOB1_ID 2>/dev/null
                 if [ $DEBUG -eq 1 ]; then
                     echo "[$THIS_JOB_NAME] $THAT_JOB_NAME 已清理，正在重新启动..." >> "$LOG_FILE"
                 fi
