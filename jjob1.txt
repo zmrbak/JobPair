@@ -2,6 +2,7 @@
 #JSUB -q gpu3
 #JSUB -J jjob1
 #JSUB -n 1
+#JSUB -m gpu07
 
 # jjob1.txt - 任务执行脚本1，包含死循环
 counter=0
@@ -12,7 +13,7 @@ DATA_FILE="jdata_${TIMESTAMP}.txt"
 # 可配置变量
 INITIAL_DELAY=20    # 初始延迟时间（秒）
 CHECK_INTERVAL=10   # 检测间隔（秒）
-DEBUG=1             # 调试模式开关：1=启用调试，0=禁用调试
+DEBUG=0             # 调试模式开关：1=启用调试，0=禁用调试
 
 # 定义变量
 THIS_JOB_NAME="jjob1"
