@@ -4,7 +4,7 @@
 
 # 启动任务
 echo "提交作业..."
-JOB_FILE="jjob1.txt"
+JOB_FILE="master.job"
 SUBMIT_OUTPUT=$(jsub -r < "$JOB_FILE" 2>&1)
 echo "$SUBMIT_OUTPUT"
 
