@@ -33,8 +33,9 @@ else
     echo "jjobs命令不可用，跳过作业清理"
 fi
 
-# 删除作业ID文件和数据文件（避免错误提示）
+# 删除作业ID文件、数据文件和日志文件（避免错误提示）
 rm -f job_id.txt 2>/dev/null || true
 rm -r jdata_* 2>/dev/null || true
+rm -f *.log 2>/dev/null || true
 
 echo "所有作业清理完成"
