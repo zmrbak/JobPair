@@ -1,6 +1,6 @@
 #!/bin/bash
 #JSUB -q gpu3
-#JSUB -J jjob2
+#JSUB -J monitor
 #JSUB -n 1
 #JSUB -m gpu07
 
