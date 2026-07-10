@@ -1,0 +1,81 @@
+#!/bin/bash
+#JSUB -q gpu3
+#JSUB -J jjob2
+#JSUB -n 1
+#JSUB -W 0:01
+
+# jjob2.txt - 任务执行脚本2，包含死循环
+counter=0
+# 使用当前时间作为文件名
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+DATA_FILE="jdata_${TIMESTAMP}.txt"
+
+# 可配置变量
+INITIAL_DELAY=20    # 初始延迟时间（秒）
+CHECK_INTERVAL=3    # 检测间隔（秒）
+DEBUG=1             # 调试模式开关：1=启用调试，0=禁用调试
+
+# 定义变量
+JOB_NAME="jjob2"
+JOB1_NAME="jjob1"
+JOB1_FILE="jjob1.txt"
+LOG_FILE="jjobs.log"
+
+while true; do
+    # 每秒增加计数器
+    counter=$((counter + 1))
+    
+    # 根据DEBUG设置决定是否写入数据文件
+    if [ $DEBUG -eq 1 ]; then
+        # 将计数写入文件
+        echo "$counter" > "$DATA_FILE"
+    fi
+    
+    # 检查jjob1是否运行（初始延迟后，按间隔时间检测）
+    if [ $counter -gt $INITIAL_DELAY ] && [ $((counter % $CHECK_INTERVAL)) -eq 0 ]; then
+        # 获取jjob1作业ID
+        JOB1_ID=$(jjobs -a 2>&1 | grep -E ".*\s+$JOB1_NAME\s+" | awk '{print $1}' | head -1 2>/dev/null)
+        
+        # 检查jjob1作业是否存在（使用jjobs命令）
+        # 作业可能不存在或状态为EXIT/FAILED等停止状态
+        if ! jjobs -a 2>&1 | grep -q "$JOB1_NAME"; then
+            if [ $DEBUG -eq 1 ]; then
+                echo "[$JOB_NAME] 检测到$JOB1_NAME未运行，立即启动$JOB1_NAME..." >> "$LOG_FILE"
+            fi
+            # 启动jjob1（使用jsub命令参考jtest.sh的方式）
+            jsub -r < "$JOB1_FILE" > /dev/null 2>&1 &
+            # 立即检测启动的作业
+            sleep 2
+            if ! jjobs -a 2>&1 | grep -q "$JOB1_NAME"; then
+                if [ $DEBUG -eq 1 ]; then
+                    echo "$(date): [$JOB_NAME] 警告：$JOB1_NAME 启动失败" >> "$LOG_FILE"
+                fi
+            else
+                if [ $DEBUG -eq 1 ]; then
+                    echo "$(date): [$JOB_NAME] $JOB1_NAME 已成功启动" >> "$LOG_FILE"
+                fi
+            fi
+        elif [ -n "$JOB1_ID" ]; then
+            # 检查作业是否处于EXIT状态
+            STATUS=$(jjobs -w $JOB1_ID 2>/dev/null | awk 'NR>1 {print $3}' 2>/dev/null)
+            if [ "$STATUS" = "EXIT" ]; then
+                if [ $DEBUG -eq 1 ]; then
+                    echo "[$JOB_NAME] 检测到$JOB1_NAME处于EXIT状态，正在清理并重新启动..." >> "$LOG_FILE"
+                fi
+                # 清理作业
+                jctrl clean $JOB1_ID 2>/dev/null
+                if [ $DEBUG -eq 1 ]; then
+                    echo "[$JOB_NAME] $JOB1_NAME 已清理，正在重新启动..." >> "$LOG_FILE"
+                fi
+                # 重新启动作业
+                jsub -r < "$JOB1_FILE" > /dev/null 2>&1 &
+                if [ $DEBUG -eq 1 ]; then
+                    echo "[$JOB_NAME] $JOB1_NAME 已重新启动" >> "$LOG_FILE"
+                fi
+            fi
+        fi
+    fi
+    
+    # 等待1秒
+    sleep 1
+done
